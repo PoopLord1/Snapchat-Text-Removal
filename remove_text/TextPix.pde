@@ -1,9 +1,9 @@
-class TextPix implements Comparable {
+class TextPixel implements Comparable {
   int location;
   int imgWidth;
   HashMap<Integer, Integer> selfPixelHash;
   
-  public TextPix(int location, HashMap<Integer, Integer> ph, int imgWidth) {
+  public TextPixel(int location, HashMap<Integer, Integer> ph, int imgWidth) {
     this.location = location;
     this.selfPixelHash = ph;
     this.imgWidth = imgWidth;

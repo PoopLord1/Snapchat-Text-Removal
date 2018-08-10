@@ -1,10 +1,11 @@
 import java.util.*;
+import TextPix;
 
 PImage origImage;
 
 void setup() {
   size(750, 1334);
-  origImage = loadImage("image2.PNG");
+  origImage = loadImage("input_data/image3.PNG");
   surface.setSize(origImage.width, origImage.height);
   process();
 }
