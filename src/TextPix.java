@@ -5,18 +5,24 @@ import java.util.HashMap;
  * A class that describes a Pixel that belongs to the text in a Snapchat-generated image.
  */
 class TextPix implements Comparable<TextPix> {
-  int location;
+  int xLocation;
+  int yLocation;
   int imgWidth;
   HashMap<Integer, Integer> selfPixelHash;
   
-  public TextPix(int location, HashMap<Integer, Integer> ph, int imgWidth) {
-    this.location = location;
+  public TextPix(int xLocation, int yLocation, HashMap<Integer, Integer> ph, int imgWidth) {
+	  this.xLocation = xLocation;
+	  this.yLocation = yLocation;
     this.selfPixelHash = ph;
     this.imgWidth = imgWidth;
   }
 
-  public int getLocation() {
-    return location;
+  public int getXLocation() {
+    return xLocation;
+  }
+  
+  public int getYLocation() {
+    return yLocation;
   }
 
   public void setSelfPixelHash(HashMap<Integer, Integer> h) {
@@ -37,7 +43,8 @@ class TextPix implements Comparable<TextPix> {
     //First, iterate over the neighboring pixels. 
     for (int a : dx) {
       for (int b : dy) {
-        int loc = location + a + b*imgWidth;
+        int currPixelX = getXLocation() + a;
+        int currPixelY = getYLocation() + b;
         Integer i = pixelHash.get(loc);
         //If it isn't in the textpixels array, we use it to compute the new value.
         if ((i == null) || (i == 0)) {

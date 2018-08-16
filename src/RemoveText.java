@@ -1,58 +1,77 @@
+import java.awt.Color;
+import java.awt.Point;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
+import javax.imageio.ImageIO;
+
+import javafx.util.Pair;
+
 public class RemoveText {
-	private PImage origImage = null;
+	// Our image memoryspace. We directly edit this to generate our new image.
+	private BufferedImage origImage = null;
 	
 	void setup() {
-	  size(750, 1334);
-	  origImage = loadImage("input_data/image3.PNG");
-	  surface.setSize(origImage.width, origImage.height);
+		// Create a new empty image
+		//origImage = new BufferedImage(750, 1334, BufferedImage.TYPE_BYTE_INDEXED);
+	  
+	  // Fill it with the data from our file on disk.
+		try {
+			origImage = ImageIO.read(new File("input_data/image3.PNG"));
+		} catch (IOException e) {
+			System.err.println("Error attempting to read from file " + "input_data/image3.PNG");
+			e.printStackTrace();
+		}
+//	  origImage = loadImage("input_data/image3.PNG");
+//	  surface.setSize(origImage.width, origImage.height);
 	  process();
 	}
 	
 	
 	//Simply copies the original snapchat image into the window.
-	void copyImage() {
-	  for (int i=0; i < origImage.pixels.length; i++) {
-	    pixels[i] = origImage.pixels[i];
-	  }
-	}
+//	void copyImage() {
+//	  for (int i=0; i < origImage.pixels.length; i++) {
+//	    pixels[i] = origImage.pixels[i];
+//	  }
+//	}
 	
 	
 	//identifyBar - returns two integer values - the start and end pixels of the snapchat text bar.
 	//make sure to search for rows that show a drop in exposure and variance.
 	int[] identifyBar() {
-	  float[] saturationLevels = new float[origImage.height];
-	  float[] exposureLevels = new float[origImage.height];
+	  double[] saturationLevels = new double[origImage.getHeight()];
+	  double[] exposureLevels = new double[origImage.getHeight()];
 	  
 	  int[] ret = {0, 0};
 	  
 	  //First, gather the saturation and exposure levels.
-	  for (int y=0; y<origImage.height; y++) {
+	  for (int y=0; y<origImage.getHeight(); y++) {
 	    
-	    float rowSaturation = 0.0;
-	    float rowExposure = 0.0;
-	    for (int x=0; x<origImage.width; x++) {
-	      int location = x + y * origImage.width;
-	      float r = red(origImage.pixels[location]);
-	      float g = green(origImage.pixels[location]);
-	      float b = blue(origImage.pixels[location]);
+	    double rowSaturation = 0.0;
+	    double rowExposure = 0.0;
+	    for (int x=0; x<origImage.getWidth(); x++) {
+	      int rgb_packed = origImage.getRGB(x, y);
+	      int r = (rgb_packed >> 16) & 0xFF;
+	      int g = (rgb_packed >> 8) & 0xFF;
+	      int b = rgb_packed & 0xFF;
 	      rowExposure += r + b + g;
 	      
-	      float avg = (r + b + g) / 3;
-	      rowSaturation += abs(r - avg);
-	      rowSaturation += abs(b - avg);
-	      rowSaturation += abs(g - avg);
+	      double avg = (r + b + g) / 3.0;
+	      rowSaturation += Math.abs(r - avg);
+	      rowSaturation += Math.abs(b - avg);
+	      rowSaturation += Math.abs(g - avg);
 	    }
 	    
-	    saturationLevels[y] = rowSaturation / origImage.width;
-	    exposureLevels[y] = rowExposure / (3*origImage.width);
+	    saturationLevels[y] = rowSaturation / origImage.getWidth();
+	    exposureLevels[y] = rowExposure / (3*origImage.getWidth());
 	  }
 	  
 	  
 	  //Now run a window down the image and try to find the black bar.
 	  //We need a drop in exposure and a drop in saturation to detect it.
-	  for (int yi=0; yi<origImage.height-30; yi++) {
+	  for (int yi=0; yi<origImage.getHeight()-30; yi++) {
 	   //Fix these threshold values plsss
 	
 	   if ((exposureLevels[yi] - exposureLevels[yi+3] > 40) && (ret[0] == 0)) {
@@ -73,74 +92,75 @@ public class RemoveText {
 	
 	//removeBar - removes the gray snapchat bar, and keeps the white text in place. 
 	//Returns an array of locations that make up the white text.
-	Integer[] removeBar(int starty, int endy) {
+	ArrayList<Point> removeBar(int starty, int endy) {
 	  //The brightest we can get is (102, 102, 102) with the bar. 
 	  //Anything above that is considered text.
-	  ArrayList<Integer> textPix = new ArrayList<Integer>();
+	  ArrayList<Point> textPix = new ArrayList<Point>();
 	  for (int y=starty; y<endy; y++) {
-	    for (int x=0; x<origImage.width; x++) {
-	      int location = x + y*origImage.width;
-	      float r = red(origImage.pixels[location]);
-	      float g = green(origImage.pixels[location]);
-	      float b = blue(origImage.pixels[location]);
-	      double avg = (r + g + b) / 3;
+	    for (int x=0; x<origImage.getWidth(); x++) {
+	      int rgb_packed = origImage.getRGB(x, y);
+	      int r = (rgb_packed >> 16) & 0xFF;
+	      int g = (rgb_packed >> 8) & 0xFF;
+	      int b = rgb_packed & 0xFF;
+	      double avg = (r + g + b) / 3.0;
 	      if (avg > 104.0) {
-	        textPix.add(location);
+	        textPix.add(new Point(x, y));
 	      }
 	    }
 	  }
 	  
-	  //Now remove all of the gray from the pixels 
+	  //Now revert the darkened pixels back to their rightful color 
 	  for (int y=starty; y<endy; y++) {
-	    for (int x=0; x<origImage.width; x++) {
-	       int location = x + y*origImage.width;
-	       if (!(textPix.contains(location))) {
-	         //The regression is: Y = 0.36176*X + 5.1657
-	         //(Where X is the brighter value and Y is the darker one.)
-	         double r = red(origImage.pixels[location]);
-	         r = (r - 5.388474) / .356637;
-	         double g = green(origImage.pixels[location]);
-	         g = (g - 5.388474) / .356637;
-	         double b = blue(origImage.pixels[location]);
-	         b = (b - 5.388474) / .356637;
-	         pixels[location] = color((int) r, (int) g, (int) b);
+	    for (int x=0; x<origImage.getWidth(); x++) {
+	    	
+	    	// Only modify the pixel if it is not a text character
+	       if (!(textPix.contains(new Pair<Integer, Integer>(x, y)))) {
+	         //The regression is: 
+	    	 // 	(dark_value) = 0.36176 * (regular_value) + 5.1657
+	    	 int rgb_packed = origImage.getRGB(x, y);
+	         int r = (rgb_packed >> 16) & 0xFF;
+	         r = (int) ((r - 5.388474) / .356637);
+	         int g = (rgb_packed >> 8) & 0xFF;
+	         g = (int) ((g - 5.388474) / .356637);
+	         int b = rgb_packed & 0xFF;
+	         b = (int) ((b - 5.388474) / .356637);
+	         origImage.setRGB(x, y, new Color(r, g, b).getRGB());
 	       }
 	    }
 	  }
 	  
 	  //And return the array of white pixels.
-	  Integer[] pixArr = new Integer[textPix.size()];
-	  pixArr = textPix.toArray(pixArr);
-	  return pixArr;
+	  return textPix;
 	}
 	
 	//Remove text - continuously loops over the given list of text pixels. Each pixel is popped and set equal
 	//to the average of some of its neighbors.
-	void removeText(Integer[] pixs) {
+	void removeText(ArrayList<Point> pixs) {
 	  
 	  //Create a new hash that stores the locations of the text pixels. 
 	  //We also add all 8 neighbors to the Hashmap.
-	  HashMap<Integer,Integer> presenceHash = new HashMap<Integer,Integer>();
-	  for (Integer i : pixs) {
+	  HashMap<Point, Integer> presenceHash = new HashMap<Point, Integer>();
+	  for (Point i : pixs) {
 	    int[] dx = {-2, -1, 0, 1, 2};
 	    int[] dy = dx;
 	    for (int y : dy) {
 	      for (int x : dx) {
-	        int newLoc = i + x + y*origImage.width;
-	        presenceHash.put(newLoc, 1);
+	    	int i_x = (int) i.getX();
+	    	int i_y = (int) i.getY();
+	        Point newPoint = new Point(i_x + x, i_y + y);
+	        presenceHash.put(newPoint, 1);
 	      }
 	    }
 	  }
 	  
 	  //Create an ArrayList of TextPix objects and their neighbors.
 	  ArrayList<TextPix> textpixs = new ArrayList<TextPix>();
-	  for (Integer i : pixs) {
+	  for (Point i : pixs) {
 	    int[] dx = {-2, -1, 0, 1, 2};
 	    int[] dy = dx;
 	    for (int y : dy) {
 	      for (int x : dx) {
-	        int newLoc = i + x + y*origImage.width;
-	        textpixs.add(new TextPix(newLoc, presenceHash, origImage.width));
+	        textpixs.add(new TextPix(x, y, presenceHash, origImage.getWidth()));
 	      }
 	    }
 	  }
@@ -177,7 +197,7 @@ public class RemoveText {
 	      b /= count;
 	      
 	      //And set this pixel equal to the average of those pixels. 
-	      pixels[t.getLocation()] = color(r, g, b);
+	      origImage.setRGB(t.getXLocation(), t.getYLocation(), new Color(r, g, b).getRGB());
 	      
 	      //Then remove the location from both the arraylist and the presenceHash.
 	      textpixs.remove(t);
@@ -198,53 +218,51 @@ public class RemoveText {
 	
 	//removeLines - uses a similar Gaussian Filter to remove the lines left by removeBar.
 	void removeLines(int[] ys) {
-	  ys[0] = ys[0]+2;
-	  ys[1] = ys[1]+1;
-	  for (int x=0; x < origImage.width; x++) {
-	    //Find the average in a 5x1 window centered at each pixel.
+	  for (int x=0; x < origImage.getWidth(); x++) {
+	    //Find the average in a 7x1 window centered at each pixel.
 	    int[] dys = {-3, 3};
 	
 	    int r=0, g=0, b=0;
 	    for (int dy : dys) {
-	      int loc = x + ys[0]*origImage.width + dy*origImage.width;
-	      r += 0.5 * red(pixels[loc]);
-	      g += 0.5 * green(pixels[loc]);
-	      b += 0.5 * blue(pixels[loc]);
+	      int rgb_packed = origImage.getRGB(x, ys[0]);
+	      r += 0.5 * ((rgb_packed >> 16) & 0xFF);
+	      g += 0.5 * ((rgb_packed >> 8) & 0xFF);
+	      b += 0.5 * (rgb_packed & 0xFF);
 	    }
-	    int location1 = x + ys[0]*origImage.width;
-	    pixels[location1] = color(r,g,b);
-	    pixels[location1+origImage.width] = color(r,g,b);
-	    pixels[location1-origImage.width] = color(r,g,b);
+	    origImage.setRGB(x, ys[0], new Color(r,g,b).getRGB());
+	    origImage.setRGB(x, ys[0] - 1, new Color(r,g,b).getRGB());
+	    origImage.setRGB(x, ys[0] + 1, new Color(r,g,b).getRGB());
+
 	    
 	    r=0;
 	    g=0;
 	    b=0;
 	    for (int dy : dys) {
-	      int loc = x + ys[1]*origImage.width + dy*origImage.width;
-	      r += 0.5 * red(pixels[loc]);
-	      g += 0.5 * green(pixels[loc]);
-	      b += 0.5 * blue(pixels[loc]);
+	      int rgb_packed = origImage.getRGB(x, ys[1] + dy);
+	      r += 0.5 * ((rgb_packed >> 16) & 0xFF);
+	      g += 0.5 * ((rgb_packed >> 16) & 0xFF);
+	      b += 0.5 * (rgb_packed & 0xFF);
 	    }
-	    int location2 = x + ys[1]*origImage.width;
-	    pixels[location2] = color(r,g,b);
-	    pixels[location2+origImage.width] = color(r,g,b);
-	    pixels[location2-origImage.width] = color(r,g,b);
+
+	    origImage.setRGB(x, ys[1], new Color(r, g, b).getRGB());
+	    origImage.setRGB(x, ys[1] + 1, new Color(r, g, b).getRGB());
+	    origImage.setRGB(x, ys[1] - 1, new Color(r, g, b).getRGB());
 	  }
 	}
 	
 	
 	void process() {
-	  loadPixels();
-	  copyImage();
+//	  loadPixels();
+//	  copyImage();
 	  int[] ys = identifyBar();
 	  
-	  Integer[] textpix = removeBar(ys[0]+3, ys[1]+1);
+	  ArrayList<Point> textpix = removeBar(ys[0]+3, ys[1]+1);
 	  
 	  removeText(textpix);
 	  
 	  removeLines(ys);  
 	  
-	  updatePixels();
+//	  updatePixels();
 	  save("out.jpg");
 	}
 }
