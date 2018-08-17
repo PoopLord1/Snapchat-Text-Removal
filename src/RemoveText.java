@@ -264,10 +264,12 @@ public class RemoveText {
 	    for (int dy : dys) {
 	      int rgb_packed = origImage.getRGB(x, ys[1] + dy);
 	      r += 0.5 * ((rgb_packed >> 16) & 0xFF);
-	      g += 0.5 * ((rgb_packed >> 16) & 0xFF);
+	      g += 0.5 * ((rgb_packed >> 8) & 0xFF);
 	      b += 0.5 * (rgb_packed & 0xFF);
 	    }
 
+	    System.out.println("rgb(" + r + "," + g + "," + b + ")");
+	    
 	    origImage.setRGB(x, ys[1], new Color(r, g, b).getRGB());
 	    origImage.setRGB(x, ys[1] + 1, new Color(r, g, b).getRGB());
 	    origImage.setRGB(x, ys[1] - 1, new Color(r, g, b).getRGB());
