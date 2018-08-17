@@ -1,3 +1,4 @@
+import java.awt.Point;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -8,9 +9,9 @@ class TextPix implements Comparable<TextPix> {
   int xLocation;
   int yLocation;
   int imgWidth;
-  HashMap<Integer, Integer> selfPixelHash;
+  HashMap<Point, Integer> selfPixelHash;
   
-  public TextPix(int xLocation, int yLocation, HashMap<Integer, Integer> ph, int imgWidth) {
+  public TextPix(int xLocation, int yLocation, HashMap<Point, Integer> ph, int imgWidth) {
 	  this.xLocation = xLocation;
 	  this.yLocation = yLocation;
     this.selfPixelHash = ph;
@@ -25,12 +26,12 @@ class TextPix implements Comparable<TextPix> {
     return yLocation;
   }
 
-  public void setSelfPixelHash(HashMap<Integer, Integer> h) {
+  public void setSelfPixelHash(HashMap<Point, Integer> h) {
     this.selfPixelHash = h;
   }
 
   //Returns an ArrayList of locations in a 5x5 area that were not used in the image's text.  
-  public ArrayList<Integer> getRelevantPixels(HashMap<Integer, Integer> pixelHash) {
+  public ArrayList<Point> getRelevantPixels(HashMap<Point, Integer> pixelHash) {
     int[] dx = {-2, -1, 0, 1, 2};
     int[] dy = {-2, -1, 0, 1, 2};
     
@@ -39,16 +40,16 @@ class TextPix implements Comparable<TextPix> {
     }
     
     //Make an ArrayList of locations for each pixel.
-    ArrayList<Integer> pixs = new ArrayList<Integer>();
+    ArrayList<Point> pixs = new ArrayList<Point>();
     //First, iterate over the neighboring pixels. 
     for (int a : dx) {
       for (int b : dy) {
         int currPixelX = getXLocation() + a;
         int currPixelY = getYLocation() + b;
-        Integer i = pixelHash.get(loc);
+        Integer i = pixelHash.get(new Point(currPixelX, currPixelY));
         //If it isn't in the textpixels array, we use it to compute the new value.
         if ((i == null) || (i == 0)) {
-          pixs.add(loc);
+          pixs.add(new Point(currPixelX, currPixelY));
         }
       }
     }
@@ -56,7 +57,7 @@ class TextPix implements Comparable<TextPix> {
   }
   
   //get number of relevant pixels
-  public int getNumRelevantPixels(HashMap<Integer, Integer> pixelHash) {
+  public int getNumRelevantPixels(HashMap<Point, Integer> pixelHash) {
     return getRelevantPixels(pixelHash).size();
   }
 
